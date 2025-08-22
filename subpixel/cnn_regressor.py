@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
 # Load dataset
-df = pd.read_csv("energy_maps_with_labels.csv")
+df = pd.read_csv("energy_maps_with_labels_g4.csv")
 X = df.iloc[:, :-2].values.reshape(-1, 1, 8, 8).astype(np.float32)
 y = df[["x_true", "y_true"]].values.astype(np.float32)
 
@@ -31,7 +31,6 @@ print(f"y_true ranges from {y_min:.2f} to {y_max:.2f}")
 # # normalization
 # # --- INPUTS -------------------------------------------------
 X = X/X.sum(axis=(2, 3), keepdims=True)
-
 
 # Split
 X_train, X_test, y_train, y_test = train_test_split(
@@ -76,6 +75,27 @@ distances_c = np.linalg.norm(y_test - y_c, axis=1)
 mean_distance_error_c = np.mean(distances_c)
 print(f"centroid mean distance error: {mean_distance_error_c:.4f}")
 
+####################################################################################################
+# Visualize ground truth locations
+plt.figure(figsize=(6, 6))
+plt.scatter(y[:, 0], y[:, 1], alpha=0.5, s=10)
+plt.xlabel("x_true")
+plt.ylabel("y_true")
+plt.title("Ground Truth Locations of all Samples")
+# plt.grid(True)
+
+# Draw 8x8 grid
+for i in range(n_pix + 1):
+    x = min_edge + i * (max_edge - min_edge) / n_pix
+    plt.axvline(x, color='red', linestyle='-', linewidth=0.7, alpha=1)
+    plt.axhline(x, color='red', linestyle='-', linewidth=0.7, alpha=1)
+
+plt.xlim(min_edge, max_edge)
+plt.ylim(min_edge, max_edge)
+plt.show()
+
+
+
 
 ############################################ mle method ############################################
 train_ds = TensorDataset(torch.tensor(X_train), torch.tensor(y_train))
@@ -92,10 +112,10 @@ class CNNSubPixelRegressor(nn.Module):
         self.model = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Dropout(0.4),
+            nn.Dropout(0.1),
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Dropout(0.4),
+            nn.Dropout(0.1),
             nn.Flatten(),
             nn.Linear(32 * 8 * 8, 64),
             nn.ReLU(),
@@ -109,12 +129,15 @@ class CNNSubPixelRegressor(nn.Module):
 # Training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = CNNSubPixelRegressor().to(device)
-criterion = nn.MSELoss()
+def l2_lastdim_loss(pred, target):
+    return torch.norm(pred - target, dim=-1).mean()
+# criterion = nn.MSELoss()
+criterion = l2_lastdim_loss
 optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
 
 train_losses, val_losses, val_mae, val_dist_errors = [], [], [], []
 
-for epoch in range(30):
+for epoch in range(50):
     model.train()
     total_train_loss = 0.0
     for xb, yb in train_loader:

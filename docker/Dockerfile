@@ -38,7 +38,8 @@ RUN apt-get update && apt-get install -y \
 # Uninstall system numpy if installed (optional, but recommended for consistency)
 RUN apt-get remove -y python3-numpy || true
 RUN pip install --upgrade pip \
-    && pip install torch pandas scikit-learn scikit-image
+    && pip install pandas scikit-learn scikit-image \
+    && pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 RUN apt-get update && apt-get install -y\
     python3-matplotlib\
