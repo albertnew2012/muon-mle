@@ -6,11 +6,20 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
+
+# Set random seeds for reproducibility
+SEED = 1
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 # Load dataset
 df = pd.read_csv("energy_maps_with_labels.csv")
 X = df.iloc[:, :-2].values.reshape(-1, 1, 8, 8).astype(np.float32)
 y = df[["x_true", "y_true"]].values.astype(np.float32)
-
 
 # Plot samples
 num_samples = 5
@@ -29,7 +38,7 @@ print(f"x_true ranges from {x_min:.2f} to {x_max:.2f}")
 print(f"y_true ranges from {y_min:.2f} to {y_max:.2f}")
 
 # # normalization
-# # --- INPUTS -------------------------------------------------
+
 # First split: separate test set (final evaluation only)
 X_temp, X_test, y_temp, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=None)
@@ -112,8 +121,6 @@ train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_ds, batch_size=64, shuffle=False)
 
 # Define CNN
-
-
 class CNNSubPixelRegressor(nn.Module):
     def __init__(self):
         super().__init__()
@@ -132,7 +139,6 @@ class CNNSubPixelRegressor(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
 
 # Training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
