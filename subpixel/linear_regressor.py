@@ -106,29 +106,26 @@ test_loader = DataLoader(test_ds, batch_size=64, shuffle=False)
 # Define CNN
 
 
-class CNNSubPixelRegressor(nn.Module):
-    def __init__(self):
+class MLPSubPixelRegressor(nn.Module):
+    def __init__(self, in_dim=64, hidden1=128, hidden2=64, dropout=0.1):
         super().__init__()
-        self.model = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 64),
-            nn.ReLU(),
-            nn.Linear(64, 2)
+        self.net = nn.Sequential(
+            nn.Flatten(),                # (B,1,8,8) -> (B,64)
+            nn.Linear(in_dim, hidden1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden1, hidden2),
+            nn.GELU(),
+            nn.Linear(hidden2, 2)
         )
 
     def forward(self, x):
-        return self.model(x)
+        return self.net(x)
 
 
 # Training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = CNNSubPixelRegressor().to(device)
+model = MLPSubPixelRegressor().to(device)
 def l2_lastdim_loss(pred, target):
     return torch.norm(pred - target, dim=-1).mean()
 # criterion = nn.MSELoss()
@@ -194,6 +191,5 @@ preds_abs = np.vstack(preds_abs)
 ys_abs = np.vstack(ys_abs)
 
 transformer_mean_dist = np.linalg.norm(preds_abs - ys_abs, axis=1).mean()
-print(f"cnn mean distance error: {transformer_mean_dist:.4f}")
+print(f"MLP mean distance error: {transformer_mean_dist:.4f}")
 print(f"Centroid mean distance error:    {mean_distance_error_c:.4f}")
-
